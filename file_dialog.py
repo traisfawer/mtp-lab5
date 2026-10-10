@@ -73,11 +73,14 @@ def list_directory(path):
     """Вернуть содержимое папки: сначала папки, затем файлы."""
     entries = []
     for entry in os.scandir(path):
-        if entry.is_dir():
-            entries.append((entry.name, True, ""))
-        else:
-            entries.append((entry.name, False,
-                            human_size(entry.stat().st_size)))
+        try:
+            if entry.is_dir():
+                entries.append((entry.name, True, ""))
+                continue
+            size = human_size(entry.stat().st_size)
+        except OSError:
+            size = "нет доступа"
+        entries.append((entry.name, False, size))
     return sorted(entries, key=lambda e: (not e[1], e[0].lower()))
 
 
@@ -130,12 +133,23 @@ class FileDialogApp:
         self.text.delete("1.0", tk.END)
         self.text.insert("1.0", text)
 
+    def show_error(self, path, error):
+        """Сообщить, что файл или папку открыть не удалось."""
+        self.show_info([("Ошибка", error.strerror or str(error))])
+        self.show_text(f"Не удалось открыть:\n{path}\n\n{error}")
+        self.status.config(text=path)
+
     def load_file(self, path):
         """Показать сведения о файле и его содержимое."""
-        self.show_info(file_info(path).items())
+        try:
+            info = file_info(path)
+        except OSError as error:
+            self.show_error(path, error)
+            return
+        self.show_info(info.items())
         try:
             text, truncated = read_preview(path)
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             self.show_text(f"Предпросмотр недоступен: {error}")
             self.status.config(text=path)
             return
@@ -153,7 +167,11 @@ class FileDialogApp:
 
     def load_directory(self, path):
         """Показать содержимое выбранной папки."""
-        entries = list_directory(path)
+        try:
+            entries = list_directory(path)
+        except OSError as error:
+            self.show_error(path, error)
+            return
         self.show_info([("Папка", path),
                         ("Подпапок", sum(1 for e in entries if e[1])),
                         ("Файлов", sum(1 for e in entries if not e[1]))])

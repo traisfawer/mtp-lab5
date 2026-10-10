@@ -150,6 +150,16 @@ class TestFileDialogWindow(TkTestCase):
         finally:
             os.remove(path)
 
+    def test_unavailable_path(self):
+        """Недоступный файл или папка не ломают окно."""
+        app = FileDialogApp(self.root)
+        missing = os.path.join(tempfile.gettempdir(), "нет_такого_пути")
+        app.load_file(missing)
+        self.assertIn("Не удалось открыть", app.text.get("1.0", "end"))
+        app.show_text("")
+        app.load_directory(missing)
+        self.assertIn("Не удалось открыть", app.text.get("1.0", "end"))
+
 
 class TestTextOutput(TkTestCase):
     """Проверка окна с текстовым полем и кнопкой."""
