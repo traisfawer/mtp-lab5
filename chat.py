@@ -24,7 +24,7 @@ import threading
 import time
 import tkinter as tk
 from datetime import datetime
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 HOST = "127.0.0.1"
 PORT = 5050
@@ -86,6 +86,7 @@ class ChatServer:
         self.address = self._socket.getsockname()
         self._clients = {}
         self._lock = threading.Lock()
+        self._send_lock = threading.Lock()
         self._running = False
 
     @property
@@ -179,9 +180,14 @@ class ChatServer:
             self.broadcast({"type": "users", "users": self.users()})
 
     def _send(self, connection, message):
-        """Отправить сообщение одному клиенту."""
+        """Отправить сообщение одному клиенту.
+
+        Отправка выполняется под блокировкой, чтобы сообщения из разных
+        потоков не перемешивались в одном сокете.
+        """
         try:
-            connection.sendall(encode_message(message))
+            with self._send_lock:
+                connection.sendall(encode_message(message))
         except OSError:
             pass
 
@@ -408,7 +414,7 @@ def main(argv=None):
     except ValueError:
         print("Порт должен быть целым числом")
     except OSError as error:
-        messagebox.showerror("Чат", f"Ошибка сети: {error}")
+        print(f"Ошибка сети: {error}")
 
 
 if __name__ == "__main__":

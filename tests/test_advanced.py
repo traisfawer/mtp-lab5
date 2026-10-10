@@ -1,13 +1,15 @@
 """Unit-тесты заданий повышенной сложности № 4 и 10."""
 
+import io
 import math
 import queue
 import unittest
+from contextlib import redirect_stdout
 
 import numpy as np
 
 from chat import (ChatClient, ChatServer, ChatWindow, clean_name,
-                  decode_messages, encode_message, format_message)
+                  decode_messages, encode_message, format_message, main)
 from plot_tk import FUNCTIONS, PlotApp, compute, parse_range
 from tests.gui import TkTestCase
 
@@ -194,6 +196,13 @@ class TestChatNetwork(unittest.TestCase):
         boris.close()
         self.wait_for(anya_inbox, "system", text="Борис вышел из чата")
         self.wait_for(anya_inbox, "users", users=["Аня"])
+
+    def test_busy_port(self):
+        """Занятый порт — сообщение в консоли, а не зависание."""
+        output = io.StringIO()
+        with redirect_stdout(output):
+            main(["server", str(self.server.port)])
+        self.assertIn("Ошибка сети", output.getvalue())
 
     def test_empty_message_not_sent(self):
         """Пустое сообщение не отправляется."""
